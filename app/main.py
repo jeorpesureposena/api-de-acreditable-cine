@@ -10,6 +10,7 @@ from app.routers import (
 )
 from app.auth import router_auth
 from app.boleteria import router_boleteria
+from app.admin import router_admin
  
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
  
@@ -35,6 +36,7 @@ app.include_router(router_reservas)
 # Nuevos routers
 app.include_router(router_auth)
 app.include_router(router_boleteria)
+app.include_router(router_admin)
  
 app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
  

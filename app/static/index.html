@@ -592,7 +592,7 @@
 <aside class="sidebar">
   <div class="sidebar-logo">
     <h1>CINE</h1>
-    <span>Admin Panel</span>
+    <span></span>
   </div>
   <nav class="sidebar-nav">
     <div class="nav-label">Principal</div>
@@ -626,17 +626,20 @@
     <button class="nav-item" onclick="navigate('reservas')">
       <span class="icon">🎟️</span> Reservas
     </button>
+    <button class="nav-item" onclick="navigate('admins')">
+      <span class="icon">🛡️</span> Administradores
+    </button>
   </nav>
   <div class="sidebar-footer">
     <div class="user-info" id="sidebar-user">
       <div class="user-name" id="sidebar-username">—</div>
-      <div id="sidebar-userrole" style="font-size:0.72rem;color:var(--muted)">—</div>
+      <div id="sidebar-userrole" style="font-size:0.72rem;color:var(--muted)"></div>
     </div>
     <button class="btn btn-primary" id="btn-create-admin" style="width:100%" onclick="showCreateAdminModal()">+ Crear Admin</button>
     <div style="height:8px"></div>
     <div class="api-status">
       <div class="status-dot"></div>
-      <span id="api-url">localhost:8000</span>
+      <span id="api-url"></span>
     </div>
   </div>
 </aside>
@@ -762,6 +765,15 @@
     </div>
     <div class="table-wrap" id="table-reservas"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
   </div>
+
+  <!-- ADMINISTRADORES -->
+  <div class="page" id="page-admins">
+    <div class="section-header">
+      <div class="section-title">🛡️ Administradores</div>
+      <button class="btn btn-primary" onclick="openModal('admin')">+ Nuevo Admin</button>
+    </div>
+    <div class="table-wrap" id="table-admins"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+  </div>
 </main>
 
 <!-- MODAL -->
@@ -818,12 +830,12 @@
   }
 
   function sectionLabel(s) {
-    const map = { home: 'Dashboard', peliculas: 'Películas', generos: 'Géneros', salas: 'Salas', funciones: 'Funciones', clientes: 'Clientes', reservas: 'Reservas' };
+    const map = { home: 'Dashboard', peliculas: 'Películas', generos: 'Géneros', salas: 'Salas', funciones: 'Funciones', clientes: 'Clientes', reservas: 'Reservas', admins: 'Administradores' };
     return map[s] || s;
   }
 
   function updateTopbar(section) {
-    const icons = { home: '🏠', peliculas: '🎬', generos: '🏷️', salas: '🪑', funciones: '🕐', clientes: '👤', reservas: '🎟️' };
+    const icons = { home: '🏠', peliculas: '🎬', generos: '🏷️', salas: '🪑', funciones: '🕐', clientes: '👤', reservas: '🎟️', admins: '🛡️' };
     document.getElementById('topbar-title').textContent = icons[section] + ' ' + sectionLabel(section);
     document.getElementById('topbar-sub').textContent = section === 'home' ? 'Resumen general del sistema' : 'Gestión de ' + sectionLabel(section).toLowerCase();
   }
@@ -852,7 +864,7 @@
   async function loadSection(section) {
     if (section === 'home') { loadStats(); return; }
     if (section === 'boleteria') { loadBoleteria(); return; }
-    const routes = { peliculas: '/peliculas/', generos: '/generos/', salas: '/salas/', funciones: '/funciones/', clientes: '/clientes/', reservas: '/reservas/' };
+    const routes = { peliculas: '/peliculas/', generos: '/generos/', salas: '/salas/', funciones: '/funciones/', clientes: '/clientes/', reservas: '/reservas/', admins: '/admins/' };
     const wrap = document.getElementById('table-' + section);
     wrap.innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>';
     try {
@@ -879,7 +891,7 @@
       wrap.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><p>No hay registros aún.</p></div>';
       return;
     }
-    const renderers = { peliculas: renderPeliculas, generos: renderGeneros, salas: renderSalas, funciones: renderFunciones, clientes: renderClientes, reservas: renderReservas };
+    const renderers = { peliculas: renderPeliculas, generos: renderGeneros, salas: renderSalas, funciones: renderFunciones, clientes: renderClientes, reservas: renderReservas, admins: renderAdmins };
     wrap.innerHTML = renderers[section](data);
   }
 
@@ -968,6 +980,21 @@
       <td><div class="actions">
         <button class="btn btn-ghost btn-sm" onclick="editItem('reserva', ${r.id})">✏️</button>
         <button class="btn btn-danger btn-sm" onclick="deleteItem('reservas', ${r.id})">🗑️</button>
+      </div></td>
+    </tr>`).join('')}</tbody></table>`;
+  }
+
+  function renderAdmins(data) {
+    return `<table><thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+    ${data.map(a => `<tr>
+      <td class="id-cell">#${a.id}</td>
+      <td><strong>${a.nombre}</strong></td>
+      <td>${a.email}</td>
+      <td>${a.rol || 'admin'}</td>
+      <td><span class="badge ${a.activo ? 'badge-active' : 'badge-inactive'}">${a.activo ? 'Activo' : 'Inactivo'}</span></td>
+      <td><div class="actions">
+        <button class="btn btn-ghost btn-sm" onclick="editItem('admin', ${a.id})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteItem('admins', ${a.id})">🗑️</button>
       </div></td>
     </tr>`).join('')}</tbody></table>`;
   }
@@ -1078,8 +1105,8 @@
       allFunciones = await apiFetch('/funciones/').catch(() => []);
     }
 
-    const forms = { genero: formGenero, pelicula: formPelicula, sala: formSala, funcion: formFuncion, cliente: formCliente, reserva: formReserva };
-    const titles = { genero: 'GÉNERO', pelicula: 'PELÍCULA', sala: 'SALA', funcion: 'FUNCIÓN', cliente: 'CLIENTE', reserva: 'RESERVA' };
+    const forms = { genero: formGenero, pelicula: formPelicula, sala: formSala, funcion: formFuncion, cliente: formCliente, reserva: formReserva, admin: formAdmin };
+    const titles = { genero: 'GÉNERO', pelicula: 'PELÍCULA', sala: 'SALA', funcion: 'FUNCIÓN', cliente: 'CLIENTE', reserva: 'RESERVA', admin: 'ADMINISTRADOR' };
 
     document.getElementById('modal-title').textContent = (item ? 'EDITAR ' : 'NUEVO ') + titles[type];
     document.getElementById('modal-body').innerHTML = forms[type](item);
@@ -1157,6 +1184,15 @@
     <div class="form-group"><label>Email</label><input id="f-email" type="email" value="${item?.email || ''}" placeholder="juan@email.com"/></div>
     <div class="form-group"><label>Teléfono</label><input id="f-telefono" value="${item?.telefono || ''}" placeholder="+58 412-0000000"/></div>
     <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="submitForm('cliente')">Guardar</button></div>`;
+  }
+
+  function formAdmin(item) {
+    return `
+    <div class="form-group"><label>Nombre</label><input id="f-nombre" value="${item?.nombre || ''}" placeholder="Nombre completo"/></div>
+    <div class="form-group"><label>Email</label><input id="f-email" type="email" value="${item?.email || ''}" placeholder="email@dominio.com"/></div>
+    <div class="form-group"><label>Contraseña</label><input id="f-pass" type="password" placeholder="Dejar vacío para no cambiar"/></div>
+    <div class="form-group"><label><input id="f-activo" type="checkbox" ${item?.activo === false ? '' : 'checked'}/> Activo</label></div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="submitForm('admin')">Guardar</button></div>`;
   }
 
   function formReserva(item) {
@@ -1249,7 +1285,8 @@
   function showApp() {
     document.getElementById('auth-screen').style.display = 'none';
     document.getElementById('sidebar-username').textContent = currentUser?.nombre || '—';
-    document.getElementById('sidebar-userrole').textContent = currentUser?.rol || '—';
+    // Ocultar rol para no mostrar "admin" en la interfaz
+    document.getElementById('sidebar-userrole').textContent = '';
     // Mostrar u ocultar botón Crear Admin según rol
     const btn = document.getElementById('btn-create-admin');
     if (btn) btn.style.display = (currentUser && currentUser.rol === 'admin') ? 'block' : 'none';
@@ -1341,6 +1378,7 @@
       funcion: { route: '/funciones/', fields: () => ({ pelicula_id: parseInt(val('f-pelicula_id')), sala_id: parseInt(val('f-sala_id')), fecha_hora: val('f-fecha_hora'), precio: parseFloat(val('f-precio')) }) },
       cliente: { route: '/clientes/', fields: () => ({ nombre: val('f-nombre'), email: val('f-email'), telefono: val('f-telefono') || null }) },
       reserva: { route: '/reservas/', fields: () => ({ cliente_id: parseInt(val('f-cliente_id')), funcion_id: parseInt(val('f-funcion_id')), numero_asiento: val('f-numero_asiento'), ...(editingId ? { estado: val('f-estado') } : {}) }) },
+      admin: { route: '/admins/', fields: () => ({ nombre: val('f-nombre'), email: val('f-email'), ...(val('f-pass') ? { password: val('f-pass') } : {}), activo: (document.getElementById('f-activo') ? document.getElementById('f-activo').checked : true) }) },
     };
 
     const { route, fields } = configs[type];
@@ -1439,7 +1477,7 @@
 
   // ── EDIT ──
   async function editItem(type, id) {
-    const routes = { pelicula: '/peliculas/', genero: '/generos/', sala: '/salas/', funcion: '/funciones/', cliente: '/clientes/', reserva: '/reservas/' };
+    const routes = { pelicula: '/peliculas/', genero: '/generos/', sala: '/salas/', funcion: '/funciones/', cliente: '/clientes/', reserva: '/reservas/', admin: '/admins/' };
     try {
       const item = await apiFetch(routes[type] + id);
       openModal(type, item);

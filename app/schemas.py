@@ -128,3 +128,25 @@ class ReservaOut(ReservaBase):
     activo: bool
     class Config:
         from_attributes = True
+
+
+# ─────────────── ADMIN / USUARIOS (solo salida y creación específica) ───────────────
+class AdminBase(BaseModel):
+    nombre: str
+    email: EmailStr
+
+class AdminCreate(AdminBase):
+    password: str
+
+class AdminUpdate(BaseModel):
+    nombre: Optional[str] = None
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
+    activo: Optional[bool] = None
+
+class AdminOut(AdminBase):
+    id: int
+    rol: str
+    activo: bool
+    class Config:
+        from_attributes = True
