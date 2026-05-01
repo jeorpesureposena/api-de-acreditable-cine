@@ -1,0 +1,1488 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CineAdmin — Panel de Gestión</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --surface2: #1c1c27;
+      --border: #2a2a3d;
+      --accent: #e8c547;
+      --accent2: #ff6b35;
+      --text: #f0f0f5;
+      --muted: #7a7a95;
+      --danger: #ff4757;
+      --success: #2ed573;
+      --radius: 12px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* ── AUTH SCREEN ── */
+    .auth-screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(10,10,15,0.95); z-index: 9999; }
+    .auth-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 100%; max-width: 420px; }
+    .auth-logo { font-family: 'Bebas Neue', sans-serif; font-size: 2.6rem; color: var(--accent); text-align: center; margin-bottom: 6px; }
+    .auth-sub { text-align: center; color: var(--muted); font-size: 0.85rem; margin-bottom: 18px; }
+    .auth-error { background: rgba(255,71,87,0.1); border: 1px solid var(--danger); border-radius: 8px; padding: 8px 10px; font-size: 0.85rem; color: var(--danger); margin-bottom: 12px; }
+
+    /* ── SIDEBAR ── */
+    .sidebar {
+      width: 240px;
+      min-height: 100vh;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      position: fixed;
+      top: 0; left: 0;
+      z-index: 100;
+    }
+
+    .sidebar-logo {
+      padding: 28px 24px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .sidebar-logo h1 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2rem;
+      letter-spacing: 3px;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .sidebar-logo span {
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .sidebar-nav {
+      padding: 16px 12px;
+      flex: 1;
+    }
+
+    .nav-label {
+      font-size: 0.65rem;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      padding: 12px 12px 6px;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 500;
+      transition: all 0.2s;
+      margin-bottom: 2px;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+    }
+
+    .nav-item:hover { background: var(--surface2); color: var(--text); }
+    .nav-item.active { background: var(--accent); color: #000; }
+    .nav-item .icon { font-size: 1.1rem; width: 20px; text-align: center; }
+
+    .sidebar-footer {
+      padding: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .api-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.75rem;
+      font-family: 'DM Mono', monospace;
+      color: var(--muted);
+    }
+
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 6px var(--success);
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── MAIN ── */
+    .main {
+      margin-left: 240px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .topbar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .topbar-title { font-size: 1rem; font-weight: 600; }
+    .topbar-sub { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+    .btn {
+      padding: 9px 18px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-primary:hover { background: #f0d060; transform: translateY(-1px); }
+    .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+    .btn-danger:hover { background: var(--danger); color: #fff; }
+    .btn-ghost { background: var(--surface2); color: var(--text); }
+    .btn-ghost:hover { background: var(--border); }
+    .btn-sm { padding: 5px 10px; font-size: 0.78rem; }
+
+    /* Botón de logout - estilo especial */
+    .btn-logout {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: linear-gradient(90deg, rgba(255,107,83,0.12), rgba(232,197,71,0.06));
+      border: 1px solid rgba(255,107,83,0.14);
+      color: var(--accent2);
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.45);
+      transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+      width: 100%;
+      cursor: pointer;
+    }
+    .btn-logout .icon { font-size: 1.05rem; }
+    .btn-logout:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 12px 30px rgba(0,0,0,0.55);
+      background: linear-gradient(90deg, rgba(255,107,83,0.18), rgba(232,197,71,0.12));
+    }
+    .btn-logout:active { transform: translateY(-1px); }
+    /* Versión compacta del logout para la topbar */
+    .topbar .btn-logout { width: auto; padding: 8px 12px; font-size: 0.85rem; }
+    .topbar .btn-logout .icon { margin-right: 8px; }
+
+    /* ── PAGES ── */
+    .page { display: none; padding: 32px; animation: fadeIn 0.3s ease; }
+    .page.active { display: block; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── HOME PAGE ── */
+    .hero {
+      background: linear-gradient(135deg, var(--surface) 0%, #1a1a2e 100%);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 48px;
+      margin-bottom: 32px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '🎬';
+      position: absolute;
+      right: 40px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 8rem;
+      opacity: 0.08;
+    }
+
+    .hero h2 {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 3.5rem;
+      letter-spacing: 4px;
+      color: var(--accent);
+      line-height: 1;
+      margin-bottom: 12px;
+    }
+
+    .hero p { color: var(--muted); font-size: 1rem; max-width: 500px; line-height: 1.6; }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .stat-card:hover { border-color: var(--accent); }
+
+    .stat-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0;
+      height: 3px; width: 100%;
+      background: var(--accent);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.3s;
+    }
+
+    .stat-card:hover::after { transform: scaleX(1); }
+
+    .stat-icon { font-size: 1.8rem; margin-bottom: 12px; }
+    .stat-value {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2.5rem;
+      color: var(--accent);
+      letter-spacing: 2px;
+      line-height: 1;
+    }
+
+    .stat-label { font-size: 0.8rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
+
+    /* ── TABLE ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.6rem;
+      letter-spacing: 2px;
+    }
+
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    table { width: 100%; border-collapse: collapse; }
+
+    thead { background: var(--surface2); }
+
+    th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      border-bottom: 1px solid var(--border);
+    }
+
+    td {
+      padding: 13px 16px;
+      font-size: 0.88rem;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    tr:last-child td { border-bottom: none; }
+
+    tr:hover td { background: var(--surface2); }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .badge-active { background: rgba(46,213,115,0.15); color: var(--success); }
+    .badge-inactive { background: rgba(255,71,87,0.15); color: var(--danger); }
+    .badge-yellow { background: rgba(232,197,71,0.15); color: var(--accent); }
+    .badge-orange { background: rgba(255,107,53,0.15); color: var(--accent2); }
+
+    .actions { display: flex; gap: 6px; }
+
+    /* ── MODAL ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 999;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      width: 100%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow-y: auto;
+      animation: modalIn 0.25s ease;
+    }
+
+    @keyframes modalIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .modal-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.5rem;
+      letter-spacing: 2px;
+      color: var(--accent);
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 1.4rem;
+      line-height: 1;
+      padding: 4px;
+      transition: color 0.2s;
+    }
+
+    .modal-close:hover { color: var(--text); }
+
+    /* ── FORM ── */
+    .form-group { margin-bottom: 16px; }
+
+    label {
+      display: block;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      margin-bottom: 6px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      transition: border-color 0.2s;
+      outline: none;
+    }
+
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    select option { background: var(--surface2); }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .form-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+    /* ── TOAST ── */
+    .toast-container {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: toastIn 0.3s ease;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    .toast.success { border-left: 3px solid var(--success); }
+    .toast.error { border-left: 3px solid var(--danger); }
+
+    @keyframes toastIn {
+      from { opacity: 0; transform: translateX(20px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    /* ── EMPTY STATE ── */
+    .empty {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--muted);
+    }
+
+    .empty-icon { font-size: 3rem; margin-bottom: 12px; }
+    .empty p { font-size: 0.9rem; }
+
+    /* ── LOADING ── */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.85rem;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 20px; height: 20px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-right: 8px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .id-cell {
+      font-family: 'DM Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .multi-select-wrap {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px;
+      min-height: 42px;
+    }
+
+    .genre-chip {
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+
+    .genre-chip.selected {
+      background: var(--accent);
+      color: #000;
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+  </style>
+  <style>
+    /* Boletería */
+    .boleteria-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+    .boleteria-info { display: flex; gap: 12px; margin-bottom: 16px; }
+    .info-chip { background: var(--surface2); border-radius: 8px; padding: 10px 12px; }
+    .info-chip-label { font-size: 0.68rem; color: var(--muted); text-transform: uppercase; font-family: 'DM Mono', monospace; }
+    .info-chip-value { font-weight: 700; margin-top: 4px; }
+    .screen-label { text-align: center; background: var(--accent); color: #000; border-radius: 8px; padding: 8px; font-size: 0.75rem; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 12px; }
+    .seat-grid { display: flex; flex-direction: column; gap: 8px; align-items: center; margin-bottom: 18px; }
+    .seat-row { display: flex; align-items: center; gap: 8px; }
+    .seat-row-label { width: 28px; text-align: center; font-family: 'DM Mono', monospace; color: var(--muted); }
+    .seat { width: 36px; height: 32px; border-radius: 6px; border: none; cursor: pointer; font-size: 0.75rem; font-family: 'DM Mono', monospace; font-weight: 700; transition: all 0.12s; }
+    .seat.libre { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+    .seat.libre:hover { background: rgba(232,197,71,0.16); border-color: var(--accent); color: var(--accent); transform: translateY(-3px); }
+    .seat.ocupado { background: rgba(255,71,87,0.12); color: var(--danger); border: 1px solid rgba(255,71,87,0.28); cursor: not-allowed; }
+    .seat.seleccionado { background: var(--accent); color: #000; border-color: var(--accent); transform: translateY(-3px); }
+    .seat-legend { display:flex; gap:18px; justify-content:center; margin-bottom:12px; }
+    .legend-item { display:flex; align-items:center; gap:8px; color:var(--muted); }
+    .legend-dot { width:14px; height:12px; border-radius:4px; }
+    .legend-libre { background: var(--surface2); border:1px solid var(--border); }
+    .legend-ocupado { background: rgba(255,71,87,0.12); border:1px solid rgba(255,71,87,0.28); }
+    .legend-sel { background: var(--accent); }
+    .asiento-chip { background: var(--accent); color:#000; padding:4px 8px; border-radius:6px; margin-right:6px; font-family: 'DM Mono', monospace; font-weight:700; }
+    .compra-panel { background: var(--surface2); border-radius: 12px; padding: 18px; }
+    .compra-title { font-family: 'Bebas Neue', sans-serif; font-size: 1.1rem; margin-bottom: 12px; }
+    .compra-row { display:flex; justify-content:space-between; margin-bottom:8px; }
+  </style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div class="auth-screen" id="auth-screen" style="display:none;">
+  <div class="auth-box">
+    <div class="auth-logo">CINE</div>
+    <div class="auth-sub">Sistema de Gestión</div>
+    <div class="auth-form active" id="form-login">
+      <div class="auth-error" id="login-error" style="display:none"></div>
+      <div class="form-group"><label>Email</label><input id="login-email" type="email" placeholder="tu@email.com"/></div>
+      <div class="form-group"><label>Contraseña</label><input id="login-pass" type="password" placeholder="••••••••"/></div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px" onclick="doLogin()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <h1>CINE</h1>
+    <span>Admin Panel</span>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-label">Principal</div>
+    <button class="nav-item active" onclick="navigate('home')">
+      <span class="icon">🏠</span> Dashboard
+    </button>
+    <button class="nav-item" onclick="navigate('boleteria')">
+      <span class="icon">🎟️</span> Boletería
+    </button>
+
+    <div class="nav-label">Catálogo</div>
+    <button class="nav-item" onclick="navigate('peliculas')">
+      <span class="icon">🎬</span> Películas
+    </button>
+    <button class="nav-item" onclick="navigate('generos')">
+      <span class="icon">🏷️</span> Géneros
+    </button>
+
+    <div class="nav-label">Operaciones</div>
+    <button class="nav-item" onclick="navigate('salas')">
+      <span class="icon">🪑</span> Salas
+    </button>
+    <button class="nav-item" onclick="navigate('funciones')">
+      <span class="icon">🕐</span> Funciones
+    </button>
+
+    <div class="nav-label">Clientes</div>
+    <button class="nav-item" onclick="navigate('clientes')">
+      <span class="icon">👤</span> Clientes
+    </button>
+    <button class="nav-item" onclick="navigate('reservas')">
+      <span class="icon">🎟️</span> Reservas
+    </button>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-info" id="sidebar-user">
+      <div class="user-name" id="sidebar-username">—</div>
+      <div id="sidebar-userrole" style="font-size:0.72rem;color:var(--muted)">—</div>
+    </div>
+    <button class="btn btn-primary" id="btn-create-admin" style="width:100%" onclick="showCreateAdminModal()">+ Crear Admin</button>
+    <div style="height:8px"></div>
+    <div class="api-status">
+      <div class="status-dot"></div>
+      <span id="api-url">localhost:8000</span>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div>
+      <div class="topbar-title" id="topbar-title">Dashboard</div>
+      <div class="topbar-sub" id="topbar-sub">Bienvenido al panel de gestión</div>
+    </div>
+    <div id="topbar-action">
+      <button class="btn-logout" onclick="logout()"><span class="icon">🚪</span><span>Cerrar sesión</span></button>
+    </div>
+  </div>
+
+  <!-- HOME -->
+  <div class="page active" id="page-home">
+    <div class="hero">
+      <h2>BIENVENIDO AL PANEL</h2>
+      <p>Gestiona películas, salas, funciones, clientes y reservas desde un solo lugar.</p>
+    </div>
+    <div class="stats-grid" id="stats-grid">
+      <div class="stat-card"><div class="stat-icon">🎬</div><div class="stat-value" id="stat-peliculas">—</div><div class="stat-label">Películas activas</div></div>
+      <div class="stat-card"><div class="stat-icon">🪑</div><div class="stat-value" id="stat-salas">—</div><div class="stat-label">Salas disponibles</div></div>
+      <div class="stat-card"><div class="stat-icon">🕐</div><div class="stat-value" id="stat-funciones">—</div><div class="stat-label">Funciones programadas</div></div>
+      <div class="stat-card"><div class="stat-icon">👤</div><div class="stat-value" id="stat-clientes">—</div><div class="stat-label">Clientes registrados</div></div>
+      <div class="stat-card"><div class="stat-icon">🎟️</div><div class="stat-value" id="stat-reservas">—</div><div class="stat-label">Reservas activas</div></div>
+      <div class="stat-card"><div class="stat-icon">🏷️</div><div class="stat-value" id="stat-generos">—</div><div class="stat-label">Géneros</div></div>
+    </div>
+  </div>
+
+  <!-- BOLETERÍA -->
+  <div class="page" id="page-boleteria">
+    <div id="boleteria-step1">
+      <div class="section-header">
+        <div class="section-title">🎟️ Boletería — Selecciona una Función</div>
+      </div>
+      <div id="funciones-list"><div class="loading"><span class="spinner"></span>Cargando funciones...</div></div>
+    </div>
+
+    <div id="boleteria-step2" style="display:none">
+      <div class="section-header">
+        <div><div class="section-title" id="boleteria-titulo">🎬 Función</div></div>
+        <button class="btn btn-ghost" onclick="volverFunciones()">← Volver</button>
+      </div>
+      <div class="boleteria-wrap">
+        <div class="boleteria-info" id="boleteria-info"></div>
+        <div style="margin:28px 0 12px">
+          <div class="screen-label">🎬 PANTALLA</div>
+          <div class="seat-grid" id="seat-grid"></div>
+          <div class="seat-legend">
+            <div class="legend-item"><div class="legend-dot legend-libre"></div> Libre</div>
+            <div class="legend-item"><div class="legend-dot legend-ocupado"></div> Ocupado</div>
+            <div class="legend-item"><div class="legend-dot legend-sel"></div> Seleccionado</div>
+          </div>
+        </div>
+        <div class="compra-panel">
+          <div class="compra-title">Resumen de Compra</div>
+          <div class="form-group"><label>Cliente</label>
+            <select id="compra-cliente"><option value="">Selecciona un cliente...</option></select>
+          </div>
+          <div class="compra-row"><span>Asientos seleccionados:</span><span id="compra-count">0</span></div>
+          <div class="asientos-sel" id="asientos-sel-list"></div>
+          <div class="compra-row"><span>Precio por asiento:</span><span id="compra-precio-unit">$0.00</span></div>
+          <div class="compra-row"><span style="font-weight:700">Total:</span><span class="compra-total" id="compra-total">$0.00</span></div>
+          <button class="btn btn-success" style="width:100%;justify-content:center;margin-top:16px" onclick="comprarBoletos()">✅ Confirmar Compra</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PELÍCULAS -->
+  <div class="page" id="page-peliculas">
+    <div class="section-header">
+      <div class="section-title">🎬 Películas</div>
+      <button class="btn btn-primary" onclick="openModal('pelicula')">+ Nueva Película</button>
+    </div>
+    <div class="table-wrap" id="table-peliculas"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+  </div>
+
+  <!-- GÉNEROS -->
+  <div class="page" id="page-generos">
+    <div class="section-header">
+      <div class="section-title">🏷️ Géneros</div>
+      <button class="btn btn-primary" onclick="openModal('genero')">+ Nuevo Género</button>
+    </div>
+    <div class="table-wrap" id="table-generos"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+  </div>
+
+  <!-- SALAS -->
+  <div class="page" id="page-salas">
+    <div class="section-header">
+      <div class="section-title">🪑 Salas</div>
+      <button class="btn btn-primary" onclick="openModal('sala')">+ Nueva Sala</button>
+    </div>
+    <div class="table-wrap" id="table-salas"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+  </div>
+
+  <!-- FUNCIONES -->
+  <div class="page" id="page-funciones">
+    <div class="section-header">
+      <div class="section-title">🕐 Funciones</div>
+      <button class="btn btn-primary" onclick="openModal('funcion')">+ Nueva Función</button>
+    </div>
+    <div class="table-wrap" id="table-funciones"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+  </div>
+
+  <!-- CLIENTES -->
+  <div class="page" id="page-clientes">
+    <div class="section-header">
+      <div class="section-title">👤 Clientes</div>
+      <button class="btn btn-primary" onclick="openModal('cliente')">+ Nuevo Cliente</button>
+    </div>
+    <div class="table-wrap" id="table-clientes"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+  </div>
+
+  <!-- RESERVAS -->
+  <div class="page" id="page-reservas">
+    <div class="section-header">
+      <div class="section-title">🎟️ Reservas</div>
+      <button class="btn btn-primary" onclick="openModal('reserva')">+ Nueva Reserva</button>
+    </div>
+    <div class="table-wrap" id="table-reservas"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+  </div>
+</main>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOnOverlay(event)">
+  <div class="modal" id="modal-box">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">Formulario</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+  const API = 'http://localhost:8000';
+  // Auth state
+  let token = localStorage.getItem('cine_token');
+  let currentUser = JSON.parse(localStorage.getItem('cine_user') || 'null');
+
+  let editingId = null;
+  let currentSection = 'home';
+  let allGeneros = [];
+  let allPeliculas = [];
+  let allSalas = [];
+  let allClientes = [];
+  let allFunciones = [];
+  let selectedGeneroIds = [];
+
+  // Mostrar pantalla de login si no hay token
+  document.addEventListener('DOMContentLoaded', () => {
+    if (!token || !currentUser) {
+      document.getElementById('auth-screen').style.display = 'flex';
+    } else {
+      showApp();
+    }
+  });
+
+  // ── NAVIGATION ──
+  function navigate(section) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('page-' + section).classList.add('active');
+    document.querySelectorAll('.nav-item').forEach(btn => {
+      if (btn.textContent.toLowerCase().includes(sectionLabel(section).toLowerCase())) {
+        btn.classList.add('active');
+      }
+    });
+    currentSection = section;
+    updateTopbar(section);
+    loadSection(section);
+  }
+
+  function sectionLabel(s) {
+    const map = { home: 'Dashboard', peliculas: 'Películas', generos: 'Géneros', salas: 'Salas', funciones: 'Funciones', clientes: 'Clientes', reservas: 'Reservas' };
+    return map[s] || s;
+  }
+
+  function updateTopbar(section) {
+    const icons = { home: '🏠', peliculas: '🎬', generos: '🏷️', salas: '🪑', funciones: '🕐', clientes: '👤', reservas: '🎟️' };
+    document.getElementById('topbar-title').textContent = icons[section] + ' ' + sectionLabel(section);
+    document.getElementById('topbar-sub').textContent = section === 'home' ? 'Resumen general del sistema' : 'Gestión de ' + sectionLabel(section).toLowerCase();
+  }
+
+  // ── API CALLS ──
+  async function apiFetch(path, options = {}) {
+    try {
+      const headers = Object.assign({ 'Content-Type': 'application/json' }, options.headers || {});
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      const res = await fetch(API + path, {
+        ...options,
+        headers,
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Error ' + res.status);
+      }
+      if (res.status === 204) return null;
+      return await res.json();
+    } catch (e) {
+      throw e;
+    }
+  }
+
+  // ── LOAD SECTION ──
+  async function loadSection(section) {
+    if (section === 'home') { loadStats(); return; }
+    if (section === 'boleteria') { loadBoleteria(); return; }
+    const routes = { peliculas: '/peliculas/', generos: '/generos/', salas: '/salas/', funciones: '/funciones/', clientes: '/clientes/', reservas: '/reservas/' };
+    const wrap = document.getElementById('table-' + section);
+    wrap.innerHTML = '<div class="loading"><span class="spinner"></span>Cargando...</div>';
+    try {
+      const data = await apiFetch(routes[section]);
+      renderTable(section, data, wrap);
+    } catch (e) {
+      wrap.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><p>No se pudo conectar a la API.<br><small>${e.message}</small></p></div>`;
+    }
+  }
+
+  async function loadStats() {
+    const sections = ['peliculas', 'generos', 'salas', 'funciones', 'clientes', 'reservas'];
+    for (const s of sections) {
+      try {
+        const data = await apiFetch('/' + s + '/');
+        document.getElementById('stat-' + s).textContent = data.length;
+      } catch { document.getElementById('stat-' + s).textContent = '—'; }
+    }
+  }
+
+  // ── RENDER TABLES ──
+  function renderTable(section, data, wrap) {
+    if (!data.length) {
+      wrap.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><p>No hay registros aún.</p></div>';
+      return;
+    }
+    const renderers = { peliculas: renderPeliculas, generos: renderGeneros, salas: renderSalas, funciones: renderFunciones, clientes: renderClientes, reservas: renderReservas };
+    wrap.innerHTML = renderers[section](data);
+  }
+
+  function renderPeliculas(data) {
+    return `<table><thead><tr><th>ID</th><th>Título</th><th>Duración</th><th>Clasificación</th><th>Géneros</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+    ${data.map(p => `<tr>
+      <td class="id-cell">#${p.id}</td>
+      <td><strong>${p.titulo}</strong></td>
+      <td>${p.duracion_min} min</td>
+      <td><span class="badge badge-yellow">${p.clasificacion}</span></td>
+      <td>${(p.generos || []).map(g => `<span class="badge badge-orange">${g.nombre}</span>`).join(' ')}</td>
+      <td><span class="badge ${p.activo ? 'badge-active' : 'badge-inactive'}">${p.activo ? 'Activa' : 'Inactiva'}</span></td>
+      <td><div class="actions">
+        <button class="btn btn-ghost btn-sm" onclick="editItem('pelicula', ${p.id})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteItem('peliculas', ${p.id})">🗑️</button>
+      </div></td>
+    </tr>`).join('')}</tbody></table>`;
+  }
+
+  function renderGeneros(data) {
+    return `<table><thead><tr><th>ID</th><th>Nombre</th><th>Acciones</th></tr></thead><tbody>
+    ${data.map(g => `<tr>
+      <td class="id-cell">#${g.id}</td>
+      <td><strong>${g.nombre}</strong></td>
+      <td><div class="actions">
+        <button class="btn btn-ghost btn-sm" onclick="editItem('genero', ${g.id})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteItem('generos', ${g.id})">🗑️</button>
+      </div></td>
+    </tr>`).join('')}</tbody></table>`;
+  }
+
+  function renderSalas(data) {
+    return `<table><thead><tr><th>ID</th><th>Nombre</th><th>Capacidad</th><th>Tipo</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+    ${data.map(s => `<tr>
+      <td class="id-cell">#${s.id}</td>
+      <td><strong>${s.nombre}</strong></td>
+      <td>${s.capacidad} asientos</td>
+      <td><span class="badge badge-yellow">${s.tipo}</span></td>
+      <td><span class="badge ${s.activo ? 'badge-active' : 'badge-inactive'}">${s.activo ? 'Activa' : 'Inactiva'}</span></td>
+      <td><div class="actions">
+        <button class="btn btn-ghost btn-sm" onclick="editItem('sala', ${s.id})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteItem('salas', ${s.id})">🗑️</button>
+      </div></td>
+    </tr>`).join('')}</tbody></table>`;
+  }
+
+  function renderFunciones(data) {
+    return `<table><thead><tr><th>ID</th><th>Película</th><th>Sala</th><th>Fecha y Hora</th><th>Precio</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+    ${data.map(f => `<tr>
+      <td class="id-cell">#${f.id}</td>
+      <td>${f.pelicula?.titulo || f.pelicula_id}</td>
+      <td>${f.sala?.nombre || f.sala_id}</td>
+      <td>${new Date(f.fecha_hora).toLocaleString('es')}</td>
+      <td>$${f.precio.toFixed(2)}</td>
+      <td><span class="badge ${f.activo ? 'badge-active' : 'badge-inactive'}">${f.activo ? 'Activa' : 'Inactiva'}</span></td>
+      <td><div class="actions">
+        <button class="btn btn-ghost btn-sm" onclick="editItem('funcion', ${f.id})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteItem('funciones', ${f.id})">🗑️</button>
+      </div></td>
+    </tr>`).join('')}</tbody></table>`;
+  }
+
+  function renderClientes(data) {
+    return `<table><thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Teléfono</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+    ${data.map(c => `<tr>
+      <td class="id-cell">#${c.id}</td>
+      <td><strong>${c.nombre}</strong></td>
+      <td>${c.email}</td>
+      <td>${c.telefono || '—'}</td>
+      <td><span class="badge ${c.activo ? 'badge-active' : 'badge-inactive'}">${c.activo ? 'Activo' : 'Inactivo'}</span></td>
+      <td><div class="actions">
+        <button class="btn btn-ghost btn-sm" onclick="editItem('cliente', ${c.id})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteItem('clientes', ${c.id})">🗑️</button>
+      </div></td>
+    </tr>`).join('')}</tbody></table>`;
+  }
+
+  function renderReservas(data) {
+    return `<table><thead><tr><th>ID</th><th>Cliente</th><th>Función</th><th>Asiento</th><th>Estado</th><th>Acciones</th></tr></thead><tbody>
+    ${data.map(r => `<tr>
+      <td class="id-cell">#${r.id}</td>
+      <td>#${r.cliente_id}</td>
+      <td>#${r.funcion_id}</td>
+      <td><span class="badge badge-yellow">${r.numero_asiento}</span></td>
+      <td><span class="badge ${r.estado === 'confirmada' ? 'badge-active' : 'badge-inactive'}">${r.estado}</span></td>
+      <td><div class="actions">
+        <button class="btn btn-ghost btn-sm" onclick="editItem('reserva', ${r.id})">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteItem('reservas', ${r.id})">🗑️</button>
+      </div></td>
+    </tr>`).join('')}</tbody></table>`;
+  }
+
+  // ── BOLETERÍA ──
+  async function loadBoleteria() {
+    document.getElementById('boleteria-step1').style.display = 'block';
+    document.getElementById('boleteria-step2').style.display = 'none';
+    const list = document.getElementById('funciones-list');
+    list.innerHTML = '<div class="loading"><span class="spinner"></span>Cargando funciones...</div>';
+    try {
+      const funciones = await apiFetch('/funciones/');
+      if (!funciones.length) { list.innerHTML = '<div class="empty"><div class="empty-icon">📭</div><p>No hay funciones disponibles.</p></div>'; return; }
+      list.innerHTML = funciones.map(f => `
+        <div class="funcion-card" onclick="seleccionarFuncion(${f.id})">
+          <div class="funcion-card-info">
+            <h3>${f.pelicula?.titulo || 'Película #' + f.pelicula_id}</h3>
+            <p>🪑 ${f.sala?.nombre || 'Sala #' + f.sala_id} &nbsp;·&nbsp; 🕐 ${new Date(f.fecha_hora).toLocaleString('es')}</p>
+          </div>
+          <div class="funcion-card-price">$${f.precio.toFixed(2)}</div>
+        </div>
+      `).join('');
+    } catch (e) {
+      list.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><p>${e.message}</p></div>`;
+    }
+  }
+
+  async function seleccionarFuncion(funcion_id) {
+    try {
+      const data = await apiFetch('/boleteria/funcion/' + funcion_id + '/asientos');
+      window.currentFuncion = data;
+      document.getElementById('boleteria-step1').style.display = 'none';
+      document.getElementById('boleteria-step2').style.display = 'block';
+      document.getElementById('boleteria-titulo').textContent = '🎬 ' + data.pelicula;
+      document.getElementById('boleteria-info').innerHTML = `
+        <div class="info-chip"><div class="info-chip-label">Sala</div><div class="info-chip-value">${data.sala}</div></div>
+        <div class="info-chip"><div class="info-chip-label">Fecha</div><div class="info-chip-value">${new Date(data.fecha_hora).toLocaleDateString('es')}</div></div>
+        <div class="info-chip"><div class="info-chip-label">Disponibles</div><div class="info-chip-value">${data.disponibles}/${data.capacidad}</div></div>
+      `;
+
+      // Cargar clientes
+      const clientes = await apiFetch('/clientes/');
+      const sel = document.getElementById('compra-cliente');
+      sel.innerHTML = '<option value="">Selecciona un cliente...</option>' + clientes.map(c => `<option value="${c.id}">${c.nombre} — ${c.email}</option>`).join('');
+
+      document.getElementById('compra-precio-unit').textContent = '$' + data.precio.toFixed(2);
+      renderSeatMap(data.asientos);
+      window.selectedSeats = [];
+      updateCompraPanel();
+    } catch (e) { toast('❌ ' + e.message, 'error'); }
+  }
+
+  function renderSeatMap(asientos) {
+    const grid = document.getElementById('seat-grid');
+    const filas = {};
+    asientos.forEach(a => { if (!filas[a.fila]) filas[a.fila] = []; filas[a.fila].push(a); });
+    grid.innerHTML = Object.entries(filas).map(([fila, seats]) => `
+      <div class="seat-row">
+        <div class="seat-row-label">${fila}</div>
+        ${seats.map(s => `
+          <button class="seat ${s.ocupado ? 'ocupado' : 'libre'}" id="seat-${s.codigo}" onclick="${s.ocupado ? '' : `toggleSeat('${s.codigo}')`}" ${s.ocupado ? 'disabled' : ''} title="${s.codigo}">${s.numero}</button>
+        `).join('')}
+      </div>
+    `).join('');
+  }
+
+  function toggleSeat(codigo) {
+    window.selectedSeats = window.selectedSeats || [];
+    const idx = window.selectedSeats.indexOf(codigo);
+    const btn = document.getElementById('seat-' + codigo);
+    if (idx >= 0) { window.selectedSeats.splice(idx, 1); btn.classList.remove('seleccionado'); btn.classList.add('libre'); }
+    else { window.selectedSeats.push(codigo); btn.classList.remove('libre'); btn.classList.add('seleccionado'); }
+    updateCompraPanel();
+  }
+
+  function updateCompraPanel() {
+    const precio = window.currentFuncion?.precio || 0;
+    const total = precio * (window.selectedSeats?.length || 0);
+    document.getElementById('compra-count').textContent = (window.selectedSeats?.length || 0);
+    document.getElementById('compra-total').textContent = '$' + total.toFixed(2);
+    document.getElementById('asientos-sel-list').innerHTML = (window.selectedSeats || []).map(s => `<span class="asiento-chip">${s}</span>`).join('');
+  }
+
+  async function comprarBoletos() {
+    const cliente_id = parseInt(document.getElementById('compra-cliente').value);
+    if (!cliente_id) { toast('⚠️ Selecciona un cliente', 'error'); return; }
+    if (!window.selectedSeats || !window.selectedSeats.length) { toast('⚠️ Selecciona al menos un asiento', 'error'); return; }
+    try {
+      const res = await apiFetch('/boleteria/comprar', { method: 'POST', body: JSON.stringify({ funcion_id: window.currentFuncion.funcion_id, cliente_id, asientos: window.selectedSeats }) });
+      toast(`✅ ${res.mensaje} — Total: $${res.total}`, 'success');
+      seleccionarFuncion(window.currentFuncion.funcion_id);
+    } catch (e) { toast('❌ ' + e.message, 'error'); }
+  }
+
+  function volverFunciones() { loadBoleteria(); }
+
+  // ── MODAL FORMS ──
+  async function openModal(type, item = null) {
+    editingId = item ? item.id : null;
+    selectedGeneroIds = item?.generos?.map(g => g.id) || [];
+
+    // Pre-load dropdowns
+    if (['pelicula', 'funcion', 'reserva'].includes(type)) {
+      allGeneros = await apiFetch('/generos/').catch(() => []);
+      allPeliculas = await apiFetch('/peliculas/').catch(() => []);
+      allSalas = await apiFetch('/salas/').catch(() => []);
+      allClientes = await apiFetch('/clientes/').catch(() => []);
+      allFunciones = await apiFetch('/funciones/').catch(() => []);
+    }
+
+    const forms = { genero: formGenero, pelicula: formPelicula, sala: formSala, funcion: formFuncion, cliente: formCliente, reserva: formReserva };
+    const titles = { genero: 'GÉNERO', pelicula: 'PELÍCULA', sala: 'SALA', funcion: 'FUNCIÓN', cliente: 'CLIENTE', reserva: 'RESERVA' };
+
+    document.getElementById('modal-title').textContent = (item ? 'EDITAR ' : 'NUEVO ') + titles[type];
+    document.getElementById('modal-body').innerHTML = forms[type](item);
+    // Ajustar tamaño del modal según el formulario (reservas necesita más ancho)
+    const modalBox = document.getElementById('modal-box');
+    if (type === 'reserva') {
+      modalBox.style.maxWidth = '980px';
+      modalBox.style.width = '90vw';
+    } else {
+      modalBox.style.maxWidth = '480px';
+      modalBox.style.width = '';
+    }
+    document.getElementById('modal-overlay').classList.add('open');
+    if (type === 'pelicula') renderGeneroChips(selectedGeneroIds);
+    if (type === 'reserva') {
+      // Si ya hay una función seleccionada en el modal, cargar su plano
+      const fij = document.getElementById('f-funcion_id');
+      if (fij && fij.value) reservaLoadAsientos(fij.value);
+    }
+  }
+
+  function formGenero(item) {
+    return `<div class="form-group"><label>Nombre</label><input id="f-nombre" value="${item?.nombre || ''}" placeholder="Ej: Acción"/></div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="submitForm('genero')">Guardar</button></div>`;
+  }
+
+  function formPelicula(item) {
+    return `
+    <div class="form-group"><label>Título</label><input id="f-titulo" value="${item?.titulo || ''}" placeholder="Ej: Inception"/></div>
+    <div class="form-row">
+      <div class="form-group"><label>Duración (min)</label><input id="f-duracion" type="number" value="${item?.duracion_min || ''}" placeholder="120"/></div>
+      <div class="form-group"><label>Clasificación</label>
+        <select id="f-clasificacion">
+          ${['G','PG','PG-13','R'].map(c => `<option value="${c}" ${item?.clasificacion === c ? 'selected' : ''}>${c}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label>Géneros</label><div id="genre-chips" class="multi-select-wrap"></div></div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="submitForm('pelicula')">Guardar</button></div>`;
+  }
+
+  function formSala(item) {
+    return `
+    <div class="form-group"><label>Nombre</label><input id="f-nombre" value="${item?.nombre || ''}" placeholder="Sala 1"/></div>
+    <div class="form-row">
+      <div class="form-group"><label>Capacidad</label><input id="f-capacidad" type="number" value="${item?.capacidad || ''}" placeholder="100"/></div>
+      <div class="form-group"><label>Tipo</label>
+        <select id="f-tipo">
+          ${['2D','3D','IMAX'].map(t => `<option value="${t}" ${item?.tipo === t ? 'selected' : ''}>${t}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="submitForm('sala')">Guardar</button></div>`;
+  }
+
+  function formFuncion(item) {
+    const dt = item?.fecha_hora ? new Date(item.fecha_hora).toISOString().slice(0,16) : '';
+    return `
+    <div class="form-group"><label>Película</label>
+      <select id="f-pelicula_id">${allPeliculas.map(p => `<option value="${p.id}" ${item?.pelicula_id === p.id ? 'selected' : ''}>${p.titulo}</option>`).join('')}</select>
+    </div>
+    <div class="form-group"><label>Sala</label>
+      <select id="f-sala_id">${allSalas.map(s => `<option value="${s.id}" ${item?.sala_id === s.id ? 'selected' : ''}>${s.nombre}</option>`).join('')}</select>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Fecha y Hora</label><input id="f-fecha_hora" type="datetime-local" value="${dt}"/></div>
+      <div class="form-group"><label>Precio</label><input id="f-precio" type="number" step="0.01" value="${item?.precio || ''}" placeholder="8.50"/></div>
+    </div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="submitForm('funcion')">Guardar</button></div>`;
+  }
+
+  function formCliente(item) {
+    return `
+    <div class="form-group"><label>Nombre</label><input id="f-nombre" value="${item?.nombre || ''}" placeholder="Juan Pérez"/></div>
+    <div class="form-group"><label>Email</label><input id="f-email" type="email" value="${item?.email || ''}" placeholder="juan@email.com"/></div>
+    <div class="form-group"><label>Teléfono</label><input id="f-telefono" value="${item?.telefono || ''}" placeholder="+58 412-0000000"/></div>
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="submitForm('cliente')">Guardar</button></div>`;
+  }
+
+  function formReserva(item) {
+    // Modal de reserva: elegir cliente existente o crear nuevo, seleccionar función y asiento
+    const clienteOptions = allClientes.map(c => `<option value="${c.id}" ${item?.cliente_id === c.id ? 'selected' : ''}>${c.nombre} — ${c.email}</option>`).join('');
+    return `
+    <div style="display:flex;gap:12px;align-items:center;margin-bottom:10px">
+      <label style="font-size:0.85rem;color:var(--muted);width:120px">Cliente:</label>
+      <label><input type="radio" name="reserva-cliente-mode" value="existing" checked onchange="toggleReservaClienteMode()"> Existente</label>
+      <label><input type="radio" name="reserva-cliente-mode" value="new" onchange="toggleReservaClienteMode()"> Nuevo</label>
+    </div>
+    <div id="reserva-cliente-existing" class="form-group">
+      <label>Selecciona cliente</label>
+      <select id="f-cliente_id"><option value="">-- Selecciona --</option>${clienteOptions}</select>
+    </div>
+    <div id="reserva-cliente-new" class="form-group" style="display:none">
+      <label>Nombre</label><input id="f-new-nombre" placeholder="Nombre completo"/>
+      <label style="margin-top:8px">Email</label><input id="f-new-email" type="email" placeholder="email@dominio.com"/>
+      <label style="margin-top:8px">Teléfono</label><input id="f-new-telefono" placeholder="opcional"/>
+    </div>
+    <div class="form-group"><label>Función</label>
+      <select id="f-funcion_id" onchange="reservaLoadAsientos(this.value)">${allFunciones.map(f => `<option value="${f.id}" ${item?.funcion_id === f.id ? 'selected' : ''}>#${f.id} — ${f.pelicula?.titulo || ''} — ${new Date(f.fecha_hora).toLocaleString('es')}</option>`).join('')}</select>
+    </div>
+    <div class="form-group">
+      <label>Plano de asientos</label>
+      <div id="reserva-seat-wrap"><div class="loading"><span class="spinner"></span>Selecciona una función para cargar el plano</div></div>
+    </div>
+    <div class="form-group"><label>Asiento seleccionado</label><input id="f-numero_asiento" readonly value="${item?.numero_asiento || ''}" placeholder="A1"/></div>
+    ${item ? `<div class="form-group"><label>Estado</label><select id="f-estado"><option value="confirmada" ${item.estado==='confirmada'?'selected':''}>Confirmada</option><option value="cancelada" ${item.estado==='cancelada'?'selected':''}>Cancelada</option></select></div>` : ''}
+    <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="submitForm('reserva')">Guardar</button></div>`;
+  }
+
+  // Toggle entre cliente existente y nuevo
+  function toggleReservaClienteMode() {
+    const mode = document.querySelector('input[name="reserva-cliente-mode"]:checked')?.value;
+    document.getElementById('reserva-cliente-existing').style.display = mode === 'existing' ? 'block' : 'none';
+    document.getElementById('reserva-cliente-new').style.display = mode === 'new' ? 'block' : 'none';
+  }
+
+  // Cargar asientos para la función seleccionada dentro del modal
+  async function reservaLoadAsientos(funcion_id) {
+    const wrap = document.getElementById('reserva-seat-wrap');
+    if (!funcion_id) { wrap.innerHTML = '<div class="empty"><p>Seleccione una función.</p></div>'; return; }
+    wrap.innerHTML = '<div class="loading"><span class="spinner"></span>Cargando plano...</div>';
+    try {
+      const data = await apiFetch('/boleteria/funcion/' + funcion_id + '/asientos');
+      window._reserva_asientos = data.asientos; // guardar para validación
+      renderReservaSeatMap(data.asientos);
+    } catch (e) { wrap.innerHTML = `<div class="empty"><p>${e.message}</p></div>`; }
+  }
+
+  function renderReservaSeatMap(asientos) {
+    const wrap = document.getElementById('reserva-seat-wrap');
+    const filas = {};
+    asientos.forEach(a => { if (!filas[a.fila]) filas[a.fila] = []; filas[a.fila].push(a); });
+    // inicializar seleccionados
+    window._reserva_selectedSeats = window._reserva_selectedSeats || [];
+    wrap.innerHTML = Object.entries(filas).map(([fila, seats]) => `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="width:28px;text-align:center;color:var(--muted);font-family:'DM Mono'">${fila}</div>
+        <div style="display:flex;gap:8px">${seats.map(s => `
+          <button class="seat ${s.ocupado ? 'ocupado' : (window._reserva_selectedSeats.includes(s.codigo) ? 'seleccionado' : 'libre')}" id="r-seat-${s.codigo}" ${s.ocupado ? 'disabled' : `onclick="reservaToggleSeat('${s.codigo}')"`} title="${s.codigo}">${s.numero}</button>
+        `).join('')}</div>
+      </div>
+    `).join('');
+    // actualizar campo de asiento
+    const input = document.getElementById('f-numero_asiento');
+    if (input) input.value = (window._reserva_selectedSeats || []).join(',');
+  }
+
+  function reservaToggleSeat(codigo) {
+    window._reserva_selectedSeats = window._reserva_selectedSeats || [];
+    const idx = window._reserva_selectedSeats.indexOf(codigo);
+    const btn = document.getElementById('r-seat-' + codigo);
+    if (idx >= 0) {
+      // deseleccionar
+      window._reserva_selectedSeats.splice(idx, 1);
+      if (btn) { btn.classList.remove('seleccionado'); btn.classList.add('libre'); }
+    } else {
+      // seleccionar (permitir múltiples)
+      window._reserva_selectedSeats.push(codigo);
+      if (btn) { btn.classList.remove('libre'); btn.classList.add('seleccionado'); }
+    }
+    // actualizar campo oculto / visible
+    const input = document.getElementById('f-numero_asiento');
+    if (input) input.value = window._reserva_selectedSeats.join(',');
+  }
+
+  // ── AUTH / SESSION ──
+  function showApp() {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('sidebar-username').textContent = currentUser?.nombre || '—';
+    document.getElementById('sidebar-userrole').textContent = currentUser?.rol || '—';
+    // Mostrar u ocultar botón Crear Admin según rol
+    const btn = document.getElementById('btn-create-admin');
+    if (btn) btn.style.display = (currentUser && currentUser.rol === 'admin') ? 'block' : 'none';
+    loadStats();
+  }
+
+  async function doLogin() {
+    const email = (document.getElementById('login-email') || {}).value;
+    const pass = (document.getElementById('login-pass') || {}).value;
+    const errEl = document.getElementById('login-error');
+    if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+    try {
+      const form = new URLSearchParams();
+      form.append('username', email);
+      form.append('password', pass);
+      const res = await fetch(API + '/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: form });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        if (errEl) { errEl.textContent = err.detail || 'Credenciales incorrectas'; errEl.style.display = 'block'; }
+        return;
+      }
+      const data = await res.json();
+      token = data.access_token;
+      currentUser = data.usuario;
+      localStorage.setItem('cine_token', token);
+      localStorage.setItem('cine_user', JSON.stringify(currentUser));
+      showApp();
+    } catch (e) {
+      if (errEl) { errEl.textContent = 'No se pudo conectar a la API'; errEl.style.display = 'block'; }
+    }
+  }
+
+  function logout() {
+    token = null; currentUser = null;
+    localStorage.removeItem('cine_token');
+    localStorage.removeItem('cine_user');
+    document.getElementById('auth-screen').style.display = 'flex';
+  }
+
+  function showCreateAdminModal() {
+    // Si no hay sesión, permitimos usar este modal para crear el primer admin (backend valida bootstrap).
+    document.getElementById('modal-title').textContent = 'CREAR ADMIN';
+    document.getElementById('modal-body').innerHTML = `
+      <div style="color:var(--muted);font-size:0.85rem;margin-bottom:10px">Si es la primera instalación, este formulario creará el primer administrador. Si ya existen administradores, debes iniciar sesión con un admin para usarlo.</div>
+      <div class="form-group"><label>Nombre</label><input id="u-nombre" placeholder="Nombre completo"/></div>
+      <div class="form-group"><label>Email</label><input id="u-email" type="email" placeholder="ejemplo@email.com"/></div>
+      <div class="form-group"><label>Contraseña</label><input id="u-pass" type="password" placeholder="••••••••"/></div>
+      <div class="form-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="submitCreateUser()">Crear</button></div>
+    `;
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+
+  async function submitCreateUser() {
+    const nombre = (document.getElementById('u-nombre') || {}).value;
+    const email = (document.getElementById('u-email') || {}).value;
+    const password = (document.getElementById('u-pass') || {}).value;
+    if (!nombre || !email || !password) { toast('Completa nombre, email y contraseña', 'error'); return; }
+    try {
+      await apiFetch('/auth/registro', { method: 'POST', body: JSON.stringify({ nombre, email, password }) });
+      toast('✅ Admin creado', 'success');
+      closeModal();
+    } catch (e) { toast('❌ ' + e.message, 'error'); }
+  }
+
+  function renderGeneroChips(selected) {
+    const wrap = document.getElementById('genre-chips');
+    if (!wrap) return;
+    wrap.innerHTML = allGeneros.map(g => `
+      <span class="genre-chip ${selected.includes(g.id) ? 'selected' : ''}" onclick="toggleGenero(${g.id}, this)">${g.nombre}</span>
+    `).join('');
+  }
+
+  function toggleGenero(id, el) {
+    if (selectedGeneroIds.includes(id)) {
+      selectedGeneroIds = selectedGeneroIds.filter(x => x !== id);
+      el.classList.remove('selected');
+    } else {
+      selectedGeneroIds.push(id);
+      el.classList.add('selected');
+    }
+  }
+
+  // ── SUBMIT FORM ──
+  async function submitForm(type) {
+    const configs = {
+      genero: { route: '/generos/', fields: () => ({ nombre: val('f-nombre') }) },
+      pelicula: { route: '/peliculas/', fields: () => ({ titulo: val('f-titulo'), duracion_min: parseInt(val('f-duracion')), clasificacion: val('f-clasificacion'), genero_ids: selectedGeneroIds }) },
+      sala: { route: '/salas/', fields: () => ({ nombre: val('f-nombre'), capacidad: parseInt(val('f-capacidad')), tipo: val('f-tipo') }) },
+      funcion: { route: '/funciones/', fields: () => ({ pelicula_id: parseInt(val('f-pelicula_id')), sala_id: parseInt(val('f-sala_id')), fecha_hora: val('f-fecha_hora'), precio: parseFloat(val('f-precio')) }) },
+      cliente: { route: '/clientes/', fields: () => ({ nombre: val('f-nombre'), email: val('f-email'), telefono: val('f-telefono') || null }) },
+      reserva: { route: '/reservas/', fields: () => ({ cliente_id: parseInt(val('f-cliente_id')), funcion_id: parseInt(val('f-funcion_id')), numero_asiento: val('f-numero_asiento'), ...(editingId ? { estado: val('f-estado') } : {}) }) },
+    };
+
+    const { route, fields } = configs[type];
+    // Manejo especial para reservas: permitir crear cliente nuevo o usar existente y validar asiento
+    if (type === 'reserva') {
+      try {
+        const mode = document.querySelector('input[name="reserva-cliente-mode"]:checked')?.value || 'existing';
+        let cliente_id = null;
+        if (mode === 'new') {
+          const nombre = val('f-new-nombre').trim();
+          const email = val('f-new-email').trim();
+          const telefono = val('f-new-telefono').trim() || null;
+          if (!nombre || !email) { toast('Completa nombre y email del nuevo cliente', 'error'); return; }
+          // Crear cliente
+          const created = await apiFetch('/clientes/', { method: 'POST', body: JSON.stringify({ nombre, email, telefono }) });
+          cliente_id = created.id;
+        } else {
+          cliente_id = parseInt(val('f-cliente_id')) || null;
+          if (!cliente_id) { toast('Selecciona un cliente existente', 'error'); return; }
+        }
+
+        const funcion_id = parseInt(val('f-funcion_id')) || null;
+        const asientoVal = (val('f-numero_asiento') || '').trim();
+        if (!funcion_id) { toast('Selecciona una función', 'error'); return; }
+        if (!asientoVal) { toast('Selecciona al menos un asiento en el plano', 'error'); return; }
+
+        // Parsear múltiples asientos separados por coma
+        const selectedAsientos = asientoVal.split(',').map(s => s.trim()).filter(Boolean);
+        if (!selectedAsientos.length) { toast('Selecciona al menos un asiento válido', 'error'); return; }
+
+        // Validar disponibilidad usando los asientos cargados
+        const asientosCache = window._reserva_asientos || [];
+        const ocupados = selectedAsientos.filter(code => {
+          const seatObj = asientosCache.find(a => a.codigo === code);
+          return seatObj ? seatObj.ocupado : false;
+        });
+        if (ocupados.length) { toast('Asientos ya ocupados: ' + ocupados.join(', '), 'error'); return; }
+
+        // Si se seleccionaron múltiples asientos, usar el endpoint /boleteria/comprar (crea múltiples reservas)
+        if (!editingId && selectedAsientos.length > 1) {
+          try {
+            const res = await apiFetch('/boleteria/comprar', { method: 'POST', body: JSON.stringify({ funcion_id, cliente_id, asientos: selectedAsientos }) });
+            toast(`✅ ${res.mensaje} — Total: $${res.total}`, 'success');
+            closeModal();
+            loadSection(currentSection);
+            return;
+          } catch (e) { toast('❌ ' + e.message, 'error'); return; }
+        }
+
+        // Un solo asiento: crear reserva individual
+        const asiento = selectedAsientos[0];
+        const body = { cliente_id, funcion_id, numero_asiento: asiento };
+        if (editingId) body.estado = val('f-estado');
+
+        if (editingId) {
+          await apiFetch(route + editingId, { method: 'PUT', body: JSON.stringify(body) });
+          toast('✅ Reserva actualizada', 'success');
+        } else {
+          await apiFetch(route, { method: 'POST', body: JSON.stringify(body) });
+          toast('✅ Reserva creada', 'success');
+        }
+        closeModal();
+        loadSection(currentSection);
+        return;
+      } catch (e) { toast('❌ ' + e.message, 'error'); return; }
+    }
+
+    const body = fields();
+
+    // Validaciones cliente para funciones
+    if (type === 'funcion') {
+      const fecha = new Date(body.fecha_hora);
+      if (isNaN(fecha.getTime()) || fecha <= new Date()) { toast('La fecha y hora deben ser en el futuro', 'error'); return; }
+      if (!body.precio || body.precio <= 0) { toast('El precio debe ser mayor a 0', 'error'); return; }
+    }
+
+    try {
+      if (editingId) {
+        await apiFetch(route + editingId, { method: 'PUT', body: JSON.stringify(body) });
+        toast('✅ Actualizado con éxito', 'success');
+      } else {
+        await apiFetch(route, { method: 'POST', body: JSON.stringify(body) });
+        toast('✅ Creado con éxito', 'success');
+      }
+      closeModal();
+      loadSection(currentSection);
+    } catch (e) {
+      toast('❌ ' + e.message, 'error');
+    }
+  }
+
+  function val(id) {
+    const el = document.getElementById(id);
+    return el ? el.value : '';
+  }
+
+  // ── EDIT ──
+  async function editItem(type, id) {
+    const routes = { pelicula: '/peliculas/', genero: '/generos/', sala: '/salas/', funcion: '/funciones/', cliente: '/clientes/', reserva: '/reservas/' };
+    try {
+      const item = await apiFetch(routes[type] + id);
+      openModal(type, item);
+    } catch (e) {
+      toast('❌ No se pudo cargar: ' + e.message, 'error');
+    }
+  }
+
+  // ── DELETE ──
+  async function deleteItem(section, id) {
+    if (!confirm('¿Eliminar este registro?')) return;
+    try {
+      await apiFetch('/' + section + '/' + id, { method: 'DELETE' });
+      toast('🗑️ Eliminado', 'success');
+      loadSection(currentSection);
+    } catch (e) {
+      toast('❌ ' + e.message, 'error');
+    }
+  }
+
+  // ── MODAL HELPERS ──
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+    editingId = null;
+    selectedGeneroIds = [];
+  }
+
+  function closeModalOnOverlay(e) {
+    if (e.target === document.getElementById('modal-overlay')) closeModal();
+  }
+
+  // ── TOAST ──
+  function toast(msg, type = 'success') {
+    const container = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    el.className = 'toast ' + type;
+    el.textContent = msg;
+    container.appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+  }
+
+  // ── INIT ──
+  loadStats();
+</script>
+</body>
+</html>
