@@ -5,6 +5,7 @@ from typing import List
 from app.database import get_db
 from app import models, schemas
 from datetime import datetime
+import re
 
 # ════════════════════════════════════════
 #              GENEROS
@@ -176,6 +177,15 @@ def listar_funciones(db: Session = Depends(get_db)):
     vencidas = db.query(models.Funcion).filter(models.Funcion.activo == True, models.Funcion.fecha_hora < ahora).all()
     for f in vencidas:
         f.activo = False
+        # Marcar reservas activas de esta función como canceladas
+        reservas = db.query(models.Reserva).filter(models.Reserva.funcion_id == f.id, models.Reserva.activo == True).all()
+        for r in reservas:
+            r.activo = False
+            r.estado = 'cancelada'
+            # Marcar boletos relacionados como inactivos
+            boletos = db.query(models.Boleto).filter(models.Boleto.reserva_id == r.id, models.Boleto.activo == True).all()
+            for b in boletos:
+                b.activo = False
     if vencidas:
         db.commit()
     return db.query(models.Funcion).filter(models.Funcion.activo == True).all()
@@ -244,6 +254,10 @@ def eliminar_funcion(funcion_id: int, db: Session = Depends(get_db)):
     for r in reservas:
         r.activo = False
         r.estado = 'cancelada'
+        # Marcar boletos relacionados como inactivos
+        boletos = db.query(models.Boleto).filter(models.Boleto.reserva_id == r.id, models.Boleto.activo == True).all()
+        for b in boletos:
+            b.activo = False
     db.commit()
 
 
@@ -329,11 +343,63 @@ def obtener_reserva(reserva_id: int, db: Session = Depends(get_db)):
 def crear_reserva(data: schemas.ReservaCreate, db: Session = Depends(get_db)):
     if not db.query(models.Cliente).filter(models.Cliente.id == data.cliente_id).first():
         raise HTTPException(status_code=404, detail="Cliente no encontrado")
-    if not db.query(models.Funcion).filter(models.Funcion.id == data.funcion_id).first():
+    funcion = db.query(models.Funcion).filter(models.Funcion.id == data.funcion_id, models.Funcion.activo == True).first()
+    if not funcion:
         raise HTTPException(status_code=404, detail="Función no encontrada")
+
+    # Verificar que el asiento no esté ocupado
+    existente = db.query(models.Reserva).filter(
+        models.Reserva.funcion_id == data.funcion_id,
+        models.Reserva.numero_asiento == data.numero_asiento,
+        models.Reserva.activo == True,
+        models.Reserva.estado == 'confirmada'
+    ).first()
+    if existente:
+        raise HTTPException(status_code=400, detail="El asiento ya está ocupado")
 
     reserva = models.Reserva(**data.model_dump())
     db.add(reserva)
+    db.flush()
+
+    # Crear boleto asociado
+    # Parsear código de asiento (ej: A12 -> fila=A, columna=12)
+    m = re.match(r"^([A-Za-z]+)(\d+)$", data.numero_asiento)
+    fila = None
+    columna = None
+    asiento_idx = None
+    if m:
+        fila = m.group(1).upper()
+        try:
+            columna = int(m.group(2))
+        except ValueError:
+            columna = None
+
+    # calcular asiento secuencial
+    cols = 10
+    capacidad = funcion.sala.capacidad
+    filas_count = (capacidad + cols - 1) // cols
+    letras = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    if fila and columna:
+        try:
+            row_index = letras.index(fila)
+            asiento_idx = row_index * cols + (columna)
+            if asiento_idx > capacidad:
+                asiento_idx = None
+        except ValueError:
+            asiento_idx = None
+
+    boleto = models.Boleto(
+        reserva_id=reserva.id,
+        funcion_id=funcion.id,
+        cliente_id=data.cliente_id,
+        numero_asiento=data.numero_asiento,
+        fila=fila,
+        columna=columna,
+        asiento=asiento_idx,
+        precio=funcion.precio,
+        fecha_emision=datetime.utcnow(),
+    )
+    db.add(boleto)
     db.commit()
     db.refresh(reserva)
     return reserva

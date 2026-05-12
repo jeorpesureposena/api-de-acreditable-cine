@@ -97,3 +97,24 @@ class Reserva(Base):
 
     cliente = relationship("Cliente", back_populates="reservas")
     funcion = relationship("Funcion", back_populates="reservas")
+    boletos = relationship("Boleto", back_populates="reserva")
+
+
+class Boleto(Base):
+    __tablename__ = "boletos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    reserva_id = Column(Integer, ForeignKey("reservas.id"), nullable=True)
+    funcion_id = Column(Integer, ForeignKey("funciones.id"), nullable=False)
+    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=False)
+    numero_asiento = Column(String(20), nullable=False)
+    fila = Column(String(10), nullable=True)
+    columna = Column(Integer, nullable=True)
+    asiento = Column(Integer, nullable=True)
+    precio = Column(Float, nullable=False)
+    fecha_emision = Column(DateTime, nullable=False)
+    activo = Column(Boolean, default=True)
+
+    reserva = relationship("Reserva", back_populates="boletos")
+    funcion = relationship("Funcion")
+    cliente = relationship("Cliente")

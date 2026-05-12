@@ -87,26 +87,32 @@ def registro(data: RegisterSchema, db: Session = Depends(get_db), request: Reque
         db.refresh(usuario)
         return {"mensaje": "Primer administrador creado con éxito", "id": usuario.id}
 
-    # Para crear usuarios posteriormente, requerimos que el solicitante sea admin
+    # Determinar si la creación viene de un admin (con token) o es un registro público
     auth = None
     if request:
         auth = request.headers.get('authorization')
-    if not auth or not auth.startswith('Bearer '):
-        raise HTTPException(status_code=403, detail="Solo administradores pueden crear usuarios")
-    token = auth.split(' ', 1)[1]
-    payload = decode_token(token)
-    user = db.query(models.Usuario).filter(models.Usuario.id == payload.get('id')).first()
-    if not user or user.rol != 'admin':
-        raise HTTPException(status_code=403, detail="Solo administradores pueden crear usuarios")
+
+    # Si hay token y es de un admin, permitir crear usuarios con rol 'admin'
+    if auth and auth.startswith('Bearer '):
+        token = auth.split(' ', 1)[1]
+        payload = decode_token(token)
+        user = db.query(models.Usuario).filter(models.Usuario.id == payload.get('id')).first()
+        if not user or user.rol != 'admin':
+            raise HTTPException(status_code=403, detail="Solo administradores pueden crear usuarios con rol admin")
+        role_to_assign = 'admin'
+    else:
+        # Registro público normal: crear usuario con rol 'usuario'
+        role_to_assign = 'usuario'
 
     existente = db.query(models.Usuario).filter(models.Usuario.email == data.email).first()
     if existente:
         raise HTTPException(status_code=400, detail="El email ya está registrado")
+
     usuario = models.Usuario(
         nombre=data.nombre,
         email=data.email,
         password_hash=hash_password(data.password),
-        rol='admin',
+        rol=role_to_assign,
     )
     db.add(usuario)
     db.commit()

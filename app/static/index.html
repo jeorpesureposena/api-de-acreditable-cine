@@ -584,6 +584,21 @@
       <div class="form-group"><label>Email</label><input id="login-email" type="email" placeholder="tu@email.com"/></div>
       <div class="form-group"><label>Contraseña</label><input id="login-pass" type="password" placeholder="••••••••"/></div>
       <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:8px" onclick="doLogin()">Entrar</button>
+      <div style="text-align:center;margin-top:10px">
+        <button class="btn btn-ghost btn-sm" onclick="showRegisterForm()">¿No tienes cuenta? Regístrate</button>
+      </div>
+    </div>
+    
+    <div class="auth-form" id="form-register" style="display:none;">
+      <div class="auth-error" id="register-error" style="display:none"></div>
+      <div class="form-group"><label>Nombre</label><input id="reg-nombre" type="text" placeholder="Nombre completo"/></div>
+      <div class="form-group"><label>Email</label><input id="reg-email" type="email" placeholder="tu@email.com"/></div>
+      <div class="form-group"><label>Contraseña</label><input id="reg-pass" type="password" placeholder="••••••••"/></div>
+      <div class="form-group"><label>Confirmar contraseña</label><input id="reg-pass2" type="password" placeholder="••••••••"/></div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button class="btn btn-ghost" onclick="showLoginForm()">Volver</button>
+        <button class="btn btn-primary" style="flex:1" onclick="doRegister()">Registrar</button>
+      </div>
     </div>
   </div>
 </div>
@@ -614,6 +629,9 @@
     <div class="nav-label">Operaciones</div>
     <button class="nav-item" onclick="navigate('salas')">
       <span class="icon">🪑</span> Salas
+    </button>
+    <button class="nav-item" onclick="openPuestosBySala()">
+      <span class="icon">📋</span> Ver puestos
     </button>
     <button class="nav-item" onclick="navigate('funciones')">
       <span class="icon">🕐</span> Funciones
@@ -1023,6 +1041,8 @@
   }
 
   async function seleccionarFuncion(funcion_id) {
+    // Ensure the boletería page is shown when a function is selected
+    navigate('boleteria');
     try {
       const data = await apiFetch('/boleteria/funcion/' + funcion_id + '/asientos');
       window.currentFuncion = data;
@@ -1047,6 +1067,45 @@
     } catch (e) { toast('❌ ' + e.message, 'error'); }
   }
 
+  // ── VER PUESTOS POR SALA (Sidebar quick view) ──
+  async function openPuestosBySala() {
+    try {
+      const salas = await apiFetch('/salas/');
+      if (!salas || !salas.length) { toast('No hay salas disponibles', 'error'); return; }
+      let body = '<div class="form-group"><label>Selecciona sala</label><select id="pu-sala-select">';
+      body += salas.map(s => `<option value="${s.id}">${s.nombre} — ${s.capacidad} asientos</option>`).join('');
+      body += '</select></div>';
+      body += '<div class="form-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancelar</button><button class="btn btn-primary" onclick="puMostrarFunciones()">Ver</button></div>';
+      document.getElementById('modal-title').textContent = 'Ver puestos — Seleccionar sala';
+      document.getElementById('modal-body').innerHTML = body;
+      document.getElementById('modal-overlay').classList.add('open');
+    } catch (e) { toast('❌ ' + e.message, 'error'); }
+  }
+
+  async function puMostrarFunciones() {
+    const sel = document.getElementById('pu-sala-select');
+    const salaId = parseInt(sel.value);
+    if (!salaId) { toast('Selecciona una sala', 'error'); return; }
+    try {
+      const funciones = await apiFetch('/funciones/');
+      const funcs = (funciones || []).filter(f => (f.sala && f.sala.id === salaId) || f.sala_id === salaId);
+      if (!funcs.length) {
+        document.getElementById('modal-body').innerHTML = '<div class="empty"><p>No hay funciones para esta sala.</p></div><div style="margin-top:16px"><button class="btn btn-ghost" onclick="closeModal()">Cerrar</button></div>';
+        return;
+      }
+      let html = '<div class="form-group"><label>Funciones en la sala</label></div>';
+      html += '<div style="display:flex;flex-direction:column;gap:8px">';
+      funcs.forEach(f => {
+        const title = f.pelicula?.titulo || ('Función #' + f.id);
+        const when = new Date(f.fecha_hora).toLocaleString('es');
+        html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)"><div><strong>${title}</strong><div style="font-size:0.85rem;color:var(--muted)">${when} — $${f.precio.toFixed(2)}</div></div><div><button class="btn btn-primary btn-sm" onclick="seleccionarFuncion(${f.id});closeModal();">Ver asientos</button></div></div>`;
+      });
+      html += '</div>';
+      html += '<div style="margin-top:12px" class="form-actions"><button class="btn btn-ghost" onclick="closeModal()">Cerrar</button></div>';
+      document.getElementById('modal-body').innerHTML = html;
+    } catch (e) { toast('❌ ' + e.message, 'error'); }
+  }
+
   function renderSeatMap(asientos) {
     const grid = document.getElementById('seat-grid');
     const filas = {};
@@ -1055,7 +1114,7 @@
       <div class="seat-row">
         <div class="seat-row-label">${fila}</div>
         ${seats.map(s => `
-          <button class="seat ${s.ocupado ? 'ocupado' : 'libre'}" id="seat-${s.codigo}" onclick="${s.ocupado ? '' : `toggleSeat('${s.codigo}')`}" ${s.ocupado ? 'disabled' : ''} title="${s.codigo}">${s.numero}</button>
+          <button class="seat ${s.ocupado ? 'ocupado' : 'libre'}" id="seat-${s.codigo}" onclick="${s.ocupado ? `showSeatInfo('${s.codigo}')` : `toggleSeat('${s.codigo}')`}" title="${s.fila} columna ${s.columna} — asiento ${s.asiento} (${s.codigo})">${s.numero}</button>
         `).join('')}
       </div>
     `).join('');
@@ -1254,7 +1313,7 @@
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
         <div style="width:28px;text-align:center;color:var(--muted);font-family:'DM Mono'">${fila}</div>
         <div style="display:flex;gap:8px">${seats.map(s => `
-          <button class="seat ${s.ocupado ? 'ocupado' : (window._reserva_selectedSeats.includes(s.codigo) ? 'seleccionado' : 'libre')}" id="r-seat-${s.codigo}" ${s.ocupado ? 'disabled' : `onclick="reservaToggleSeat('${s.codigo}')"`} title="${s.codigo}">${s.numero}</button>
+          <button class="seat ${s.ocupado ? 'ocupado' : (window._reserva_selectedSeats.includes(s.codigo) ? 'seleccionado' : 'libre')}" id="r-seat-${s.codigo}" onclick="${s.ocupado ? `showSeatInfo('${s.codigo}')` : `reservaToggleSeat('${s.codigo}')`}" title="${s.fila} columna ${s.columna} — asiento ${s.asiento} (${s.codigo})">${s.numero}</button>
         `).join('')}</div>
       </div>
     `).join('');
@@ -1279,6 +1338,31 @@
     // actualizar campo oculto / visible
     const input = document.getElementById('f-numero_asiento');
     if (input) input.value = window._reserva_selectedSeats.join(',');
+  }
+
+  function showSeatInfo(codigo) {
+    const seats = (window.currentFuncion && window.currentFuncion.asientos) ? window.currentFuncion.asientos : (window._reserva_asientos || []);
+    const seat = (seats || []).find(s => s.codigo === codigo);
+    if (!seat) { toast('Información no disponible para este asiento', 'error'); return; }
+    if (!seat.ocupado) { toast('Asiento libre', 'success'); return; }
+
+    const clienteNombre = seat.cliente_nombre || '—';
+    const clienteEmail = seat.cliente_email || '';
+    const clienteTel = seat.cliente_telefono || '';
+    const count = seat.cliente_reservas_count || 1;
+    const boletoId = seat.boleto_id;
+
+    let body = '';
+    body += `<div class="form-group"><label>Asiento</label><input value="${seat.codigo}" readonly/></div>`;
+    body += `<div class="form-group"><label>Cliente</label><div style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px">${clienteNombre}${clienteEmail ? ' — ' + clienteEmail : ''}${clienteTel ? '<br/>' + clienteTel : ''}</div></div>`;
+    body += `<div class="form-group"><label>Asientos reservados por este cliente</label><div style="padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:6px">${count}</div></div>`;
+    body += `<div class="form-actions"><button class="btn btn-ghost" onclick="closeModal()">Cerrar</button>`;
+    if (boletoId) body += `<a class="btn btn-primary" href="${API}/boleteria/boleto/${boletoId}/pdf" target="_blank" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center">Descargar PDF</a>`;
+    body += `</div>`;
+
+    document.getElementById('modal-title').textContent = 'Información del Asiento';
+    document.getElementById('modal-body').innerHTML = body;
+    document.getElementById('modal-overlay').classList.add('open');
   }
 
   // ── AUTH / SESSION ──
@@ -1316,6 +1400,47 @@
       showApp();
     } catch (e) {
       if (errEl) { errEl.textContent = 'No se pudo conectar a la API'; errEl.style.display = 'block'; }
+    }
+  }
+
+  function showRegisterForm() {
+    const loginEl = document.getElementById('form-login');
+    const regEl = document.getElementById('form-register');
+    if (loginEl) loginEl.style.display = 'none';
+    if (regEl) regEl.style.display = 'block';
+    const err = document.getElementById('login-error'); if (err) { err.style.display = 'none'; err.textContent = ''; }
+  }
+
+  function showLoginForm() {
+    const loginEl = document.getElementById('form-login');
+    const regEl = document.getElementById('form-register');
+    if (regEl) regEl.style.display = 'none';
+    if (loginEl) loginEl.style.display = 'block';
+    const err = document.getElementById('register-error'); if (err) { err.style.display = 'none'; err.textContent = ''; }
+  }
+
+  async function doRegister() {
+    const nombre = (document.getElementById('reg-nombre') || {}).value || '';
+    const email = (document.getElementById('reg-email') || {}).value || '';
+    const pass = (document.getElementById('reg-pass') || {}).value || '';
+    const pass2 = (document.getElementById('reg-pass2') || {}).value || '';
+    const errEl = document.getElementById('register-error');
+    if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+    if (!nombre.trim() || !email.trim() || !pass) {
+      if (errEl) { errEl.textContent = 'Completa nombre, email y contraseña'; errEl.style.display = 'block'; }
+      return;
+    }
+    if (pass !== pass2) {
+      if (errEl) { errEl.textContent = 'Las contraseñas no coinciden'; errEl.style.display = 'block'; }
+      return;
+    }
+    try {
+      await apiFetch('/auth/registro', { method: 'POST', body: JSON.stringify({ nombre: nombre.trim(), email: email.trim(), password: pass }) });
+      toast('✅ Registro exitoso. Ahora inicia sesión.', 'success');
+      showLoginForm();
+      const loginEmail = document.getElementById('login-email'); if (loginEmail) loginEmail.value = email.trim();
+    } catch (e) {
+      if (errEl) { errEl.textContent = e.message || 'Error en el registro'; errEl.style.display = 'block'; }
     }
   }
 
